@@ -23,12 +23,9 @@ st.markdown("""
     box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
     margin-bottom: 15px;
 }
-img {
-    border-radius: 10px;
-    transition: 0.3s;
-}
 img:hover {
     transform: scale(1.08);
+    transition: 0.3s;
 }
 h1, h2, h3, h4 {
     color: #E2E8F0;
@@ -36,9 +33,10 @@ h1, h2, h3, h4 {
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ TITLE + HERO ------------------
+# ------------------ TITLE ------------------
 st.markdown("# 🎬 OTT Content Intelligence Dashboard")
 
+# ------------------ HERO SECTION ------------------
 st.markdown("""
 <div style="
 background: linear-gradient(to right, #000000, #1e293b);
@@ -66,8 +64,10 @@ df['date_added'] = pd.to_datetime(df['date_added'], errors='coerce')
 df['year_added'] = df['date_added'].dt.year
 df['duration_num'] = df['duration'].str.extract(r'(\d+)').astype(float)
 
-# 🎬 ADD POSTER COLUMN
-df["poster"] = "https://i.imgur.com/7D7I6dI.png"
+# 🎬 DYNAMIC POSTERS (UNIQUE FOR EACH TITLE)
+df["poster"] = df["title"].apply(
+    lambda x: f"https://dummyimage.com/300x450/1E293B/ffffff&text={x[:15].replace(' ', '+')}"
+)
 
 # ------------------ SIDEBAR ------------------
 st.sidebar.markdown("## 🎯 Filters")
@@ -88,7 +88,7 @@ filtered_df = df[
     (df['release_year'].between(year_range[0], year_range[1]))
 ]
 
-# ------------------ SEARCH BAR ------------------
+# ------------------ SEARCH ------------------
 search = st.text_input("🔍 Search Content")
 
 if search:
@@ -99,12 +99,16 @@ if search:
 # ------------------ POSTER FUNCTION ------------------
 def show_posters(data):
     cols = st.columns(5)
+
     for i, row in data.iterrows():
         with cols[i % 5]:
             st.markdown(f"""
             <div style="text-align:center;">
-                <img src="{row['poster']}" style="width:100%;">
-                <p style="color:white;font-size:14px;">{row['title'][:30]}</p>
+                <img src="{row['poster']}" 
+                     style="width:100%; height:260px; object-fit:cover; border-radius:10px;">
+                <p style="color:white; font-size:13px; margin-top:5px;">
+                    {row['title'][:25]}
+                </p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -120,7 +124,7 @@ with tab1:
     col1.markdown(f'<div class="card"><h4>🎬 Total</h4><h2>{len(filtered_df)}</h2></div>', unsafe_allow_html=True)
     col2.markdown(f'<div class="card"><h4>🌍 Countries</h4><h2>{filtered_df["country"].nunique()}</h2></div>', unsafe_allow_html=True)
     col3.markdown(f'<div class="card"><h4>🎭 Genres</h4><h2>{filtered_df["listed_in"].nunique()}</h2></div>', unsafe_allow_html=True)
-    col4.markdown(f'<div class="card"><h4>⏱ Duration</h4><h2>{int(filtered_df["duration_num"].mean())}</h2></div>', unsafe_allow_html=True)
+    col4.markdown(f'<div class="card"><h4>⏱ Avg Duration</h4><h2>{int(filtered_df["duration_num"].mean())}</h2></div>', unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -149,9 +153,9 @@ with tab1:
 
     st.markdown("---")
 
-    # 🎬 NETFLIX STYLE SECTIONS
+    # 🎬 CONTENT SECTIONS
     st.markdown("## 🔥 Trending Now")
-    show_posters(filtered_df.sample(10))
+    show_posters(filtered_df.sample(min(10, len(filtered_df))))
 
     st.markdown("## 🎬 Movies")
     movies = filtered_df[filtered_df['type'] == 'Movie']
