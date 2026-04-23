@@ -92,9 +92,12 @@ filtered_df = df[
 search = st.text_input("🔍 Search Content")
 
 if search:
-    filtered_df = filtered_df[
+    temp_df = filtered_df[
         filtered_df['title'].str.contains(search, case=False, na=False)
     ]
+    
+    if len(temp_df) > 0:
+        filtered_df = temp_df
 
 # ------------------ POSTER FUNCTION ------------------
 def show_posters(data):
@@ -124,7 +127,14 @@ with tab1:
     col1.markdown(f'<div class="card"><h4>🎬 Total</h4><h2>{len(filtered_df)}</h2></div>', unsafe_allow_html=True)
     col2.markdown(f'<div class="card"><h4>🌍 Countries</h4><h2>{filtered_df["country"].nunique()}</h2></div>', unsafe_allow_html=True)
     col3.markdown(f'<div class="card"><h4>🎭 Genres</h4><h2>{filtered_df["listed_in"].nunique()}</h2></div>', unsafe_allow_html=True)
-    col4.markdown(f'<div class="card"><h4>⏱ Avg Duration</h4><h2>{int(filtered_df["duration_num"].mean())}</h2></div>', unsafe_allow_html=True)
+    
+    avg_duration = filtered_df["duration_num"].mean()
+
+if pd.isna(avg_duration):
+    avg_duration_display = 0
+else:
+    avg_duration_display = int(avg_duration)
+    col4.markdown(f'<div class="card"><h4>⏱ Avg Duration</h4><h2>{avg_duration_display}</h2></div>', unsafe_allow_html=True)
 
     st.markdown("---")
 
