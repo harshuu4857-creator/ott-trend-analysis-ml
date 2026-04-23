@@ -67,7 +67,7 @@ df['year_added'] = df['date_added'].dt.year
 df['duration_num'] = df['duration'].str.extract(r'(\d+)').astype(float)
 
 # 🎬 ADD POSTER COLUMN
-df["poster"] = "https://via.placeholder.com/300x450.png?text=OTT"
+df["poster"] = "https://dummyimage.com/300x450/000/fff&text=OTT"
 
 # ------------------ SIDEBAR ------------------
 st.sidebar.markdown("## 🎯 Filters")
