@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
 # ------------------ PAGE CONFIG ------------------
-st.set_page_config(page_title="OTT AI Dashboard", layout="wide")
+st.set_page_config(page_title="OTT Intelligence Dashboard", layout="wide")
 
 # ------------------ CUSTOM CSS ------------------
 st.markdown("""
@@ -20,10 +18,12 @@ st.markdown("""
     background-color: #1E293B;
     padding: 20px;
     border-radius: 12px;
+    text-align: center;
     box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
 }
 img:hover {
     transform: scale(1.05);
+    transition: 0.3s;
 }
 h1, h2, h3, h4 {
     color: #E2E8F0;
@@ -31,8 +31,9 @@ h1, h2, h3, h4 {
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ TITLE ------------------
+# ------------------ HEADER ------------------
 st.markdown("# 🎬 OTT Content Intelligence Dashboard")
+st.markdown("### Explore trends, insights and smart recommendations")
 
 # ------------------ LOAD DATA ------------------
 df = pd.read_csv("netflix_titles.csv")
@@ -55,13 +56,13 @@ df["poster"] = df["title"].apply(
 # ------------------ SIDEBAR ------------------
 st.sidebar.header("🎯 Filters")
 
-content_type_filter = st.sidebar.selectbox("Content Type", df['type'].unique())
+content_type_filter = st.sidebar.selectbox("Content Type", ["Movie", "TV Show"])
 
 year_range = st.sidebar.slider(
     "Release Year",
     int(df['release_year'].min()),
     int(df['release_year'].max()),
-    (2000, 2020)
+    (2010, 2020)
 )
 
 filtered_df = df[
@@ -91,14 +92,16 @@ def show_posters(data):
             """, unsafe_allow_html=True)
 
 # ------------------ TABS ------------------
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🎯 Smart Recommend", "📌 Insights"])
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🎯 Recommendation", "📌 Insights"])
 
 # ================== DASHBOARD ==================
 with tab1:
 
+    st.markdown("## 📊 Overview")
+
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.markdown(f'<div class="card"><h4>Total</h4><h2>{len(filtered_df)}</h2></div>', unsafe_allow_html=True)
+    col1.markdown(f'<div class="card"><h4>Total Content</h4><h2>{len(filtered_df)}</h2></div>', unsafe_allow_html=True)
     col2.markdown(f'<div class="card"><h4>Countries</h4><h2>{filtered_df["country"].nunique()}</h2></div>', unsafe_allow_html=True)
     col3.markdown(f'<div class="card"><h4>Genres</h4><h2>{filtered_df["listed_in"].nunique()}</h2></div>', unsafe_allow_html=True)
 
@@ -109,24 +112,29 @@ with tab1:
 
     st.markdown("---")
 
-    fig1 = px.bar(filtered_df, x='type', title="Content Type")
-    st.plotly_chart(fig1, use_container_width=True)
+    col1, col2 = st.columns(2)
 
-    fig2 = px.pie(filtered_df, names='rating', title="Ratings")
-    st.plotly_chart(fig2, use_container_width=True)
+    with col1:
+        fig1 = px.bar(filtered_df, x='type', title="Content Distribution")
+        st.plotly_chart(fig1, use_container_width=True)
 
-    st.markdown("## 🔥 Trending")
+    with col2:
+        fig2 = px.pie(filtered_df, names='rating', title="Ratings")
+        st.plotly_chart(fig2, use_container_width=True)
+
+    st.markdown("## 🔥 Trending Content")
+
     if len(filtered_df) > 0:
         show_posters(filtered_df.sample(min(10, len(filtered_df))))
 
-# ================== SMART RECOMMEND ==================
+# ================== RECOMMENDATION ==================
 with tab2:
 
     st.markdown("## 🎯 Smart Recommendation System")
+    st.markdown("Filter content based on preferences")
 
     col1, col2, col3 = st.columns(3)
 
-    # Inputs
     release_year = col1.slider(
         "Release Year",
         int(df['release_year'].min()),
@@ -136,36 +144,34 @@ with tab2:
 
     content_type = col2.selectbox(
         "Content Type",
-        ["Unknown", "Movie", "TV Show"]
+        ["Movie", "TV Show"]
     )
 
     genre_list = sorted(set(df['listed_in'].str.split(', ').sum()))
-
     genre = col3.selectbox("Genre", genre_list)
 
-    if st.button("🔍 Recommend"):
+    if st.button("🔍 Get Recommendations"):
 
         filtered = df.copy()
 
-        # Year filter (flexible)
+        # Year filter
         filtered = filtered[
             (filtered['release_year'] >= release_year - 2) &
             (filtered['release_year'] <= release_year + 2)
         ]
 
-        # Type filter (ONLY if not Unknown)
-        if content_type != "Unknown":
-            filtered = filtered[filtered['type'] == content_type]
+        # Type filter
+        filtered = filtered[filtered['type'] == content_type]
 
         # Genre filter
         filtered = filtered[
             filtered['listed_in'].str.contains(genre, case=False, na=False)
         ]
 
-        st.markdown("## 🎬 Recommended Content")
+        st.markdown("### 🎬 Recommended Content")
 
         if len(filtered) == 0:
-            st.warning("❌ No content found")
+            st.warning("No matching content found")
         else:
             filtered = filtered.sort_values(by="release_year", ascending=False).head(10)
             show_posters(filtered)
@@ -173,18 +179,20 @@ with tab2:
 # ================== INSIGHTS ==================
 with tab3:
 
-    st.markdown("## 📌 Insights")
+    st.markdown("## 📌 Key Insights")
 
     st.markdown("""
     - OTT content is growing rapidly  
-    - Movies dominate over TV Shows  
-    - USA & India produce most content  
+    - Movies dominate the platform  
+    - USA and India are top producers  
+    - Drama & Comedy are most popular genres  
     """)
 
-    st.markdown("## 💡 Recommendations")
+    st.markdown("## 💡 Business Recommendations")
 
     st.markdown("""
-    - Focus on trending genres  
-    - Invest in high-demand regions  
+    - Invest in trending genres  
+    - Focus on high-demand regions  
     - Optimize content duration  
+    - Produce recent and engaging content  
     """)
