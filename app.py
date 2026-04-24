@@ -133,7 +133,8 @@ with tab2:
     st.markdown("## 🎯 Smart Recommendation System")
     st.markdown("Filter content based on preferences")
 
-    col1, col2, col3 = st.columns(3)
+    # 👉 UPDATED: 4 columns now (added Country)
+    col1, col2, col3, col4 = st.columns(4)
 
     release_year = col1.slider(
         "Release Year",
@@ -149,6 +150,10 @@ with tab2:
 
     genre_list = sorted(set(df['listed_in'].str.split(', ').sum()))
     genre = col3.selectbox("Genre", genre_list)
+
+    # 👉 NEW: COUNTRY FILTER
+    country_list = sorted(df['country'].dropna().unique())
+    country = col4.selectbox("Country", country_list)
 
     if st.button("🔍 Get Recommendations"):
 
@@ -166,6 +171,11 @@ with tab2:
         # Genre filter
         filtered = filtered[
             filtered['listed_in'].str.contains(genre, case=False, na=False)
+        ]
+
+        # 👉 NEW: COUNTRY FILTER LOGIC
+        filtered = filtered[
+            filtered['country'].str.contains(country, case=False, na=False)
         ]
 
         st.markdown("### 🎬 Recommended Content")
