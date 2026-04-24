@@ -47,38 +47,15 @@ df.fillna({
 
 df['duration_num'] = df['duration'].str.extract(r'(\d+)').astype(float)
 
-# ------------------ DYNAMIC POSTERS ------------------
+# ------------------ POSTERS ------------------
 df["poster"] = df["title"].apply(
     lambda x: f"https://dummyimage.com/300x450/1E293B/ffffff&text={x[:15].replace(' ', '+')}"
 )
 
-# ------------------ RECOMMENDATION SYSTEM ------------------
-df['combined'] = df['listed_in'] + " " + df['description']
-
-cv = CountVectorizer(stop_words='english')
-matrix = cv.fit_transform(df['combined'])
-similarity = cosine_similarity(matrix)
-
-def recommend(title):
-    title = title.lower()
-
-    if title not in df['title'].str.lower().values:
-        return []
-
-    idx = df[df['title'].str.lower() == title].index[0]
-
-    scores = list(enumerate(similarity[idx]))
-    scores = sorted(scores, key=lambda x: x[1], reverse=True)
-
-    recs = []
-    for i in scores[1:6]:
-        recs.append(df.iloc[i[0]])
-    return recs
-
 # ------------------ SIDEBAR ------------------
 st.sidebar.header("🎯 Filters")
 
-content_type = st.sidebar.selectbox("Content Type", df['type'].unique())
+content_type_filter = st.sidebar.selectbox("Content Type", df['type'].unique())
 
 year_range = st.sidebar.slider(
     "Release Year",
@@ -88,7 +65,7 @@ year_range = st.sidebar.slider(
 )
 
 filtered_df = df[
-    (df['type'] == content_type) &
+    (df['type'] == content_type_filter) &
     (df['release_year'].between(year_range[0], year_range[1]))
 ]
 
@@ -96,11 +73,9 @@ filtered_df = df[
 search = st.text_input("🔍 Search Content")
 
 if search:
-    temp = filtered_df[
+    filtered_df = filtered_df[
         filtered_df['title'].str.contains(search, case=False, na=False)
     ]
-    if len(temp) > 0:
-        filtered_df = temp
 
 # ------------------ POSTER FUNCTION ------------------
 def show_posters(data):
@@ -116,7 +91,7 @@ def show_posters(data):
             """, unsafe_allow_html=True)
 
 # ------------------ TABS ------------------
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🎯 Recommend", "📌 Insights"])
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🎯 Smart Recommend", "📌 Insights"])
 
 # ================== DASHBOARD ==================
 with tab1:
@@ -134,7 +109,6 @@ with tab1:
 
     st.markdown("---")
 
-    # Charts
     fig1 = px.bar(filtered_df, x='type', title="Content Type")
     st.plotly_chart(fig1, use_container_width=True)
 
@@ -145,31 +119,56 @@ with tab1:
     if len(filtered_df) > 0:
         show_posters(filtered_df.sample(min(10, len(filtered_df))))
 
-# ================== RECOMMEND ==================
+# ================== SMART RECOMMEND ==================
 with tab2:
 
-    st.markdown("## 🎯 Content Recommendation")
+    st.markdown("## 🎯 Smart Recommendation System")
 
-    user_input = st.text_input("Enter Movie/Show Name")
+    col1, col2, col3 = st.columns(3)
 
-    if st.button("Recommend"):
+    # Inputs
+    release_year = col1.slider(
+        "Release Year",
+        int(df['release_year'].min()),
+        int(df['release_year'].max()),
+        2018
+    )
 
-        recs = recommend(user_input)
+    content_type = col2.selectbox(
+        "Content Type",
+        ["Unknown", "Movie", "TV Show"]
+    )
 
-        if len(recs) == 0:
-            st.warning("❌ Title not found")
+    genre_list = sorted(set(df['listed_in'].str.split(', ').sum()))
+
+    genre = col3.selectbox("Genre", genre_list)
+
+    if st.button("🔍 Recommend"):
+
+        filtered = df.copy()
+
+        # Year filter (flexible)
+        filtered = filtered[
+            (filtered['release_year'] >= release_year - 2) &
+            (filtered['release_year'] <= release_year + 2)
+        ]
+
+        # Type filter (ONLY if not Unknown)
+        if content_type != "Unknown":
+            filtered = filtered[filtered['type'] == content_type]
+
+        # Genre filter
+        filtered = filtered[
+            filtered['listed_in'].str.contains(genre, case=False, na=False)
+        ]
+
+        st.markdown("## 🎬 Recommended Content")
+
+        if len(filtered) == 0:
+            st.warning("❌ No content found")
         else:
-            cols = st.columns(5)
-
-            for i, row in enumerate(recs):
-                with cols[i % 5]:
-                    st.markdown(f"""
-                    <div style="text-align:center;">
-                        <img src="{row['poster']}" 
-                             style="width:100%; height:260px; border-radius:10px;">
-                        <p style="color:white;">{row['title']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+            filtered = filtered.sort_values(by="release_year", ascending=False).head(10)
+            show_posters(filtered)
 
 # ================== INSIGHTS ==================
 with tab3:
