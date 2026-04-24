@@ -78,16 +78,28 @@ if search:
         filtered_df['title'].str.contains(search, case=False, na=False)
     ]
 
-# ------------------ POSTER FUNCTION ------------------
+# ------------------ POSTER FUNCTION (UPDATED) ------------------
 def show_posters(data):
     cols = st.columns(5)
+
     for i, row in data.iterrows():
         with cols[i % 5]:
             st.markdown(f"""
             <div style="text-align:center;">
                 <img src="{row['poster']}" 
                      style="width:100%; height:260px; object-fit:cover; border-radius:10px;">
-                <p style="color:white;">{row['title'][:25]}</p>
+
+                <p style="color:white; font-weight:bold;">
+                    {row['title'][:25]}
+                </p>
+
+                <p style="color:#9CA3AF; font-size:12px;">
+                    🎬 {row['director'][:25]}
+                </p>
+
+                <p style="color:#9CA3AF; font-size:12px;">
+                    ⭐ {row['rating']} | 📅 {row['release_year']}
+                </p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -133,8 +145,8 @@ with tab2:
     st.markdown("## 🎯 Smart Recommendation System")
     st.markdown("Filter content based on preferences")
 
-    # 👉 UPDATED: 4 columns now (added Country)
-    col1, col2, col3, col4 = st.columns(4)
+    # 👉 NOW ONLY 3 COLUMNS (Country removed)
+    col1, col2, col3 = st.columns(3)
 
     release_year = col1.slider(
         "Release Year",
@@ -150,10 +162,6 @@ with tab2:
 
     genre_list = sorted(set(df['listed_in'].str.split(', ').sum()))
     genre = col3.selectbox("Genre", genre_list)
-
-    # 👉 NEW: COUNTRY FILTER
-    country_list = sorted(df['country'].dropna().unique())
-    country = col4.selectbox("Country", country_list)
 
     if st.button("🔍 Get Recommendations"):
 
@@ -171,11 +179,6 @@ with tab2:
         # Genre filter
         filtered = filtered[
             filtered['listed_in'].str.contains(genre, case=False, na=False)
-        ]
-
-        # 👉 NEW: COUNTRY FILTER LOGIC
-        filtered = filtered[
-            filtered['country'].str.contains(country, case=False, na=False)
         ]
 
         st.markdown("### 🎬 Recommended Content")
