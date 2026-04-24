@@ -183,12 +183,10 @@ with tab2:
     try:
         model = joblib.load("model.pkl")
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
 
-        release_year = col1.number_input("Release Year", 2000, 2025)
-        duration = col2.number_input("Duration", 1, 300)
-        rating = col3.selectbox("Rating", df['rating'].unique())
-
+release_year = col1.number_input("Release Year", 2000, 2025)
+duration = col2.number_input("Duration", 1, 300)
         le = LabelEncoder()
         df['rating_encoded'] = le.fit_transform(df['rating'])
         rating_encoded = le.transform([rating])[0]
