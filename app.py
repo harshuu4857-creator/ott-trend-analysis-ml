@@ -192,7 +192,7 @@ duration = col2.number_input("Duration", 1, 300)
         rating_encoded = le.transform([rating])[0]
 
         if st.button("🚀 Predict"):
-            prediction = model.predict([[release_year, duration, rating_encoded]])
+            prediction = model.predict([[release_year, duration, 0]])
 
             if prediction[0] == 0:
                 st.success("🎬 Movie")
