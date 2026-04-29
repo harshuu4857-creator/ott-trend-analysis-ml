@@ -7,8 +7,8 @@ from functools import lru_cache
 # ------------------ CONFIG ------------------
 st.set_page_config(page_title="OTT Intelligence Dashboard", layout="wide")
 
-TMDB_API_KEY = "YOUR_TMDB_API_KEY"  # 🔥 PUT YOUR KEY HERE
-IMG_BASE = "https://image.tmdb.org/t/p/w500"
+RAPID_API_KEY = "YOUR_RAPIDAPI_KEY"   # 🔥 PUT YOUR KEY
+RAPID_API_HOST = "imdb8.p.rapidapi.com"
 
 # ------------------ HEADER ------------------
 st.title("🎬 OTT Content Intelligence Dashboard")
@@ -30,20 +30,28 @@ df.fillna({
 
 df['duration_num'] = df['duration'].str.extract(r'(\d+)').astype(float)
 
-# ------------------ TMDB POSTER ------------------
+# ------------------ POSTER FUNCTION ------------------
 @lru_cache(maxsize=1000)
-def get_poster_tmdb(title):
+def get_poster(title):
     try:
         title_clean = title.split(":")[0]
 
-        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={title_clean}"
-        response = requests.get(url).json()
+        url = "https://imdb8.p.rapidapi.com/title/find"
 
-        if response["results"]:
-            poster_path = response["results"][0]["poster_path"]
+        querystring = {"q": title_clean}
 
-            if poster_path:
-                return IMG_BASE + poster_path
+        headers = {
+            "X-RapidAPI-Key": RAPID_API_KEY,
+            "X-RapidAPI-Host": RAPID_API_HOST
+        }
+
+        response = requests.get(url, headers=headers, params=querystring).json()
+
+        results = response.get("results", [])
+
+        for item in results:
+            if "image" in item and "url" in item["image"]:
+                return item["image"]["url"]
 
         return "https://via.placeholder.com/300x450?text=No+Poster"
 
@@ -58,7 +66,7 @@ def show_posters(data):
         col = cols[i % 5]
 
         with col:
-            poster = get_poster_tmdb(row['title'])
+            poster = get_poster(row['title'])
 
             st.image(poster, use_container_width=True)
 
