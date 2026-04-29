@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import requests
+from functools import lru_cache
 
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(page_title="OTT Intelligence Dashboard", layout="wide")
@@ -10,7 +12,12 @@ st.title("🎬 OTT Content Intelligence Dashboard")
 st.markdown("Explore trends, insights and smart recommendations")
 
 # ------------------ LOAD DATA ------------------
-df = pd.read_csv("netflix_titles.csv")
+@st.cache_data
+def load_data():
+    df = pd.read_csv("netflix_titles.csv")
+    return df
+
+df = load_data()
 
 # ------------------ PREPROCESSING ------------------
 df.fillna({
@@ -22,10 +29,42 @@ df.fillna({
 
 df['duration_num'] = df['duration'].str.extract(r'(\d+)').astype(float)
 
-# ------------------ POSTERS (Dummy) ------------------
-df["poster"] = df["title"].apply(
-    lambda x: f"https://dummyimage.com/300x450/1E293B/ffffff&text={x[:15].replace(' ', '+')}"
-)
+# ------------------ POSTER FUNCTION ------------------
+@lru_cache(maxsize=500)
+def get_poster(title):
+    api_key = "11117c58"   # your OMDb key
+
+    try:
+        url = f"http://www.omdbapi.com/?apikey={api_key}&t={title}"
+        response = requests.get(url).json()
+
+        if response.get("Response") == "True":
+            return response.get("Poster")
+        else:
+            return "https://via.placeholder.com/300x450?text=No+Image"
+
+    except:
+        return "https://via.placeholder.com/300x450?text=Error"
+
+# ------------------ POSTER GRID ------------------
+def show_posters(data):
+    cols = st.columns(5)
+
+    for i, row in data.iterrows():
+        col = cols[i % 5]
+
+        with col:
+            poster_url = get_poster(row['title'])
+
+            st.image(poster_url, use_container_width=True)
+
+            st.markdown(
+                f"<div style='text-align:center; font-size:14px; font-weight:600;'>"
+                f"{row['title'][:25]}</div>",
+                unsafe_allow_html=True
+            )
+
+            st.caption(f"🎬 {row['director']}")
 
 # ------------------ SIDEBAR ------------------
 st.sidebar.header("🎯 Filters")
@@ -51,22 +90,6 @@ if search:
     filtered_df = filtered_df[
         filtered_df['title'].str.contains(search, case=False, na=False)
     ]
-
-# ------------------ POSTER FUNCTION (FIXED) ------------------
-def show_posters(data):
-    cols = st.columns(5)
-
-    for i, row in data.iterrows():
-        with cols[i % 5]:
-
-            # Poster
-            st.image(row["poster"], use_container_width=True)
-
-            # Title
-            st.markdown(f"**{row['title'][:25]}**")
-
-            # 👉 ONLY DIRECTOR NAME (as you asked)
-            st.caption(f"🎬 {row['director']}")
 
 # ------------------ TABS ------------------
 tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🎯 Recommendation", "📌 Insights"])
@@ -102,13 +125,13 @@ with tab1:
     st.subheader("🔥 Trending Content")
 
     if len(filtered_df) > 0:
-        show_posters(filtered_df.sample(min(10, len(filtered_df))))
+        sample_df = filtered_df.sample(min(10, len(filtered_df)))
+        show_posters(sample_df)
 
 # ================== RECOMMENDATION ==================
 with tab2:
 
     st.subheader("🎯 Smart Recommendation System")
-    st.write("Filter content based on preferences")
 
     col1, col2, col3 = st.columns(3)
 
@@ -131,16 +154,13 @@ with tab2:
 
         filtered = df.copy()
 
-        # Year filter
         filtered = filtered[
             (filtered['release_year'] >= release_year - 2) &
             (filtered['release_year'] <= release_year + 2)
         ]
 
-        # Type filter
         filtered = filtered[filtered['type'] == content_type]
 
-        # Genre filter
         filtered = filtered[
             filtered['listed_in'].str.contains(genre, case=False, na=False)
         ]
