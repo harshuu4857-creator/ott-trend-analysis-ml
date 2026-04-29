@@ -4,8 +4,11 @@ import plotly.express as px
 import requests
 from functools import lru_cache
 
-# ------------------ PAGE CONFIG ------------------
+# ------------------ CONFIG ------------------
 st.set_page_config(page_title="OTT Intelligence Dashboard", layout="wide")
+
+TMDB_API_KEY = "YOUR_TMDB_API_KEY"  # 🔥 PUT YOUR KEY HERE
+IMG_BASE = "https://image.tmdb.org/t/p/w500"
 
 # ------------------ HEADER ------------------
 st.title("🎬 OTT Content Intelligence Dashboard")
@@ -14,34 +17,35 @@ st.markdown("Explore trends, insights and smart recommendations")
 # ------------------ LOAD DATA ------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("netflix_titles.csv")
-    return df
+    return pd.read_csv("netflix_titles.csv")
 
 df = load_data()
 
-# ------------------ PREPROCESSING ------------------
+# ------------------ PREPROCESS ------------------
 df.fillna({
     'director': "Unknown",
-    'cast': "Unknown",
     'country': "Unknown",
     'rating': "Unknown"
 }, inplace=True)
 
 df['duration_num'] = df['duration'].str.extract(r'(\d+)').astype(float)
 
-# ------------------ POSTER FUNCTION ------------------
-@lru_cache(maxsize=500)
-def get_poster(title):
-    api_key = "11117c58"   # your OMDb key
-
+# ------------------ TMDB POSTER ------------------
+@lru_cache(maxsize=1000)
+def get_poster_tmdb(title):
     try:
-        url = f"http://www.omdbapi.com/?apikey={api_key}&t={title}"
+        title_clean = title.split(":")[0]
+
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={title_clean}"
         response = requests.get(url).json()
 
-        if response.get("Response") == "True":
-            return response.get("Poster")
-        else:
-            return "https://via.placeholder.com/300x450?text=No+Image"
+        if response["results"]:
+            poster_path = response["results"][0]["poster_path"]
+
+            if poster_path:
+                return IMG_BASE + poster_path
+
+        return "https://via.placeholder.com/300x450?text=No+Poster"
 
     except:
         return "https://via.placeholder.com/300x450?text=Error"
@@ -54,9 +58,9 @@ def show_posters(data):
         col = cols[i % 5]
 
         with col:
-            poster_url = get_poster(row['title'])
+            poster = get_poster_tmdb(row['title'])
 
-            st.image(poster_url, use_container_width=True)
+            st.image(poster, use_container_width=True)
 
             st.markdown(
                 f"<div style='text-align:center; font-size:14px; font-weight:600;'>"
@@ -99,16 +103,15 @@ with tab1:
 
     st.subheader("📊 Overview")
 
-    col1, col2, col3, col4 = st.columns(4)
+    c1, c2, c3, c4 = st.columns(4)
 
-    col1.metric("Total Content", len(filtered_df))
-    col2.metric("Countries", filtered_df['country'].nunique())
-    col3.metric("Genres", filtered_df['listed_in'].nunique())
+    c1.metric("Total Content", len(filtered_df))
+    c2.metric("Countries", filtered_df['country'].nunique())
+    c3.metric("Genres", filtered_df['listed_in'].nunique())
 
     avg = filtered_df["duration_num"].mean()
     avg = 0 if pd.isna(avg) else int(avg)
-
-    col4.metric("Avg Duration", avg)
+    c4.metric("Avg Duration", avg)
 
     st.markdown("---")
 
@@ -125,8 +128,7 @@ with tab1:
     st.subheader("🔥 Trending Content")
 
     if len(filtered_df) > 0:
-        sample_df = filtered_df.sample(min(10, len(filtered_df)))
-        show_posters(sample_df)
+        show_posters(filtered_df.sample(min(10, len(filtered_df))))
 
 # ================== RECOMMENDATION ==================
 with tab2:
@@ -142,10 +144,7 @@ with tab2:
         2018
     )
 
-    content_type = col2.selectbox(
-        "Content Type",
-        ["Movie", "TV Show"]
-    )
+    content_type = col2.selectbox("Content Type", ["Movie", "TV Show"])
 
     genre_list = sorted(set(df['listed_in'].str.split(', ').sum()))
     genre = col3.selectbox("Genre", genre_list)
