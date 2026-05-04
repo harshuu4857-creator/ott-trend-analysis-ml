@@ -7,34 +7,44 @@ import requests
 TMDB_API_KEY = "5609ab5a9c50d7e2e03b53ff1e36401a"
 
 # =========================
-# 🎬 Fetch Movie Data
+# 🎬 Fetch Movie Poster
 # =========================
-def fetch_movie(movie_name):
+def fetch_poster(movie_name):
+    try:
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={movie_name}"
+        data = requests.get(url).json()
+
+        if data["results"]:
+            poster_path = data["results"][0]["poster_path"]
+            if poster_path:
+                return "https://image.tmdb.org/t/p/w500" + poster_path
+        
+        return "https://via.placeholder.com/300x450?text=No+Image"
+
+    except:
+        return "https://via.placeholder.com/300x450?text=Error"
+
+
+# =========================
+# 🎥 Fetch Movie Details
+# =========================
+def fetch_details(movie_name):
     try:
         url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={movie_name}"
         data = requests.get(url).json()
 
         if data["results"]:
             movie = data["results"][0]
-            poster_path = movie["poster_path"]
+            title = movie["title"]
+            rating = movie["vote_average"]
+            release = movie["release_date"][:4] if movie["release_date"] else "N/A"
 
-            poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/300x450"
+            return title, rating, release
 
-            return {
-                "title": movie["title"],
-                "rating": movie["vote_average"],
-                "year": movie["release_date"][:4] if movie["release_date"] else "N/A",
-                "poster": poster
-            }
+        return movie_name, "N/A", "N/A"
+
     except:
-        pass
-
-    return {
-        "title": movie_name,
-        "rating": "N/A",
-        "year": "N/A",
-        "poster": "https://via.placeholder.com/300x450"
-    }
+        return movie_name, "N/A", "N/A"
 
 
 # =========================
@@ -43,27 +53,23 @@ def fetch_movie(movie_name):
 st.set_page_config(page_title="OTT Trend Analysis", layout="wide")
 
 # =========================
-# 🎨 CUSTOM CSS (Netflix Feel)
+# 🎨 CLEAN UI STYLE
 # =========================
 st.markdown("""
     <style>
     body {
-        background-color: #0b0c10;
+        background-color: #0e1117;
         color: white;
     }
     .movie-card {
-        background-color: #111;
-        border-radius: 12px;
-        padding: 10px;
-        transition: transform 0.3s ease;
-    }
-    .movie-card:hover {
-        transform: scale(1.05);
+        padding: 5px;
+        border-radius: 10px;
+        text-align: center;
     }
     .movie-title {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: bold;
-        margin-top: 8px;
+        margin-top: 5px;
     }
     .movie-info {
         font-size: 13px;
@@ -75,8 +81,8 @@ st.markdown("""
 # =========================
 # 🎬 HEADER
 # =========================
-st.title("🔥 OTT Trend Analysis")
-st.markdown("### Trending Movies")
+st.title("🔥 OTT Trend Analysis Dashboard")
+st.write("Trending Movies with Posters")
 
 # =========================
 # 🎥 MOVIE LIST
@@ -94,19 +100,21 @@ movies = [
 ]
 
 # =========================
-# 🎬 GRID DISPLAY (NETFLIX STYLE)
+# 🎬 NETFLIX STYLE GRID
 # =========================
-cols = st.columns(5)
+num_cols = 5
+for i in range(0, len(movies), num_cols):
+    cols = st.columns(num_cols)
 
-for i, movie in enumerate(movies):
-    with cols[i % 5]:
-        data = fetch_movie(movie)
+    for j in range(num_cols):
+        if i + j < len(movies):
+            movie = movies[i + j]
 
-        st.markdown('<div class="movie-card">', unsafe_allow_html=True)
+            with cols[j]:
+                poster = fetch_poster(movie)
+                title, rating, year = fetch_details(movie)
 
-        st.image(data["poster"], use_container_width=True)
+                st.image(poster, use_container_width=True)
 
-        st.markdown(f'<div class="movie-title">{data["title"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="movie-info">⭐ {data["rating"]} | 📅 {data["year"]}</div>', unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown(f"<div class='movie-title'>{title}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='movie-info'>⭐ {rating} | 📅 {year}</div>", unsafe_allow_html=True)
